@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<language_definitions>
+  <language
+    processor="Telink_TC32"
+    endian="little"
+    size="16"
+    variant="default"
+    version="1.0"
+    slafile="Telink_TC32.sla"
+    processorspec="Telink_TC32.pspec"
+    id="Telink_TC32:LE:16:default">
+      <description>Telink TC32 16-Bit Microcontroller</description>
+      <compiler name="default" spec="Telink_TC32.cspec" id="default"/>
+  </language>
+</language_definitions>

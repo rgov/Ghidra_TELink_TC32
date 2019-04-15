@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<compiler_spec>
+  <global>
+    <range space="RAM"/>
+  </global>
+  <stackpointer register="sp" space="RAM"/>
+  <default_proto>
+    <!-- FIXME: this is just garbage right now -->
+    <prototype name="__stdcall" extrapop="2" stackshift="2">
+      <input>
+        <pentry maxsize="2" minsize="1">
+          <register name="r1"/>
+        </pentry>
+        <pentry maxsize="2" minsize="1">
+          <register name="r2"/>
+        </pentry>
+        <pentry maxsize="2" minsize="1">
+          <register name="r3"/>
+        </pentry>
+        <pentry maxsize="2" minsize="1">
+          <register name="r4"/>
+        </pentry>
+        <pentry maxsize="500" minsize="1" align="2">
+          <addr space="stack" offset="2"/>
+        </pentry>
+      </input>
+      <output>
+        <pentry minsize="1" maxsize="2">
+          <register name="r1"/>
+        </pentry>
+      </output>
+      <unaffected>
+        <register name="sp"/>
+      </unaffected>
+    </prototype>
+  </default_proto>
+</compiler_spec>
