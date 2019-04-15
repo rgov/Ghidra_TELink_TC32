@@ -1,0 +1,4 @@
+.DS_Store
+
+# Do not include the built .sla file
+Telink_TC32/data/languages/Telink_TC32.sla
