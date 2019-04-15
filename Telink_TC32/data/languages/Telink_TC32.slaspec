@@ -121,7 +121,7 @@ attach variables
 # Map the condition operand for the conditional TJ instruction.
 attach names
   [ cond_imm_8_4 ]
-  [ eq ne cs cc mi pl vs vc hi ls ge lt gt le al "<und>" ]
+  [ eq ne cs cc mi pl vs vc hi ls ge lt gt le al _ ]
 ;
 
 
