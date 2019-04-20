@@ -74,16 +74,6 @@ define token instr(16)
 ;
 
 
-define context flags
-  cond = (0, 3)
-  mode = (4, 4)  # FIXME: Fake!
-;
-
-
-# 
-cond_or_s: "s" is mode=0 { }
-cond_or_s: cond is mode=1 & cond { }
-
 # Immediates that are multiplied by a constant
 imm_0_7_x4: value is imm_0_7 [ value = imm_0_7 * 4; ] { }
 imm_0_8_x4: value is imm_0_8 [ value = imm_0_8 * 4; ] { }
@@ -126,82 +116,82 @@ attach names
 
 
 # tadd%C %0-2r, %3-5r, #%6-8d
-:tadd^cond_or_s reg_0_3, reg_3_3, #imm_6_3 is op_9_7=0x0076 & cond_or_s & reg_0_3 & reg_3_3 & imm_6_3
+:tadds reg_0_3, reg_3_3, #imm_6_3 is op_9_7=0x0076 & reg_0_3 & reg_3_3 & imm_6_3
 {
 }
 
 # tadd%C %0-2r, %3-5r, %6-8r
-:tadd^cond_or_s reg_0_3, reg_3_3, reg_6_3 is op_9_7=0x0074 & cond_or_s & reg_0_3 & reg_3_3 & reg_6_3
+:tadds reg_0_3, reg_3_3, reg_6_3 is op_9_7=0x0074 & reg_0_3 & reg_3_3 & reg_6_3
 {
 }
 
 # tadd%C %8-10r, #%0-7d
-:tadd^cond_or_s reg_8_3, #imm_0_8 is op_11_5=0x0016 & cond_or_s & reg_8_3 & imm_0_8
+:tadds reg_8_3, #imm_0_8 is op_11_5=0x0016 & reg_8_3 & imm_0_8
 {
 }
 
 # tadd%c %8-10r, pc, #%0-7W
-:tadd^cond reg_8_3, pc, #imm_0_8_x4 is op_11_5=0x000e & cond & reg_8_3 & pc & imm_0_8_x4
+:tadd reg_8_3, pc, #imm_0_8_x4 is op_11_5=0x000e & reg_8_3 & pc & imm_0_8_x4
 {
 }
 
 # tadd%c %8-10r, sp, #%0-7W
-:tadd^cond reg_8_3, sp, #imm_0_8_x4 is op_11_5=0x000f & cond & reg_8_3 & sp & imm_0_8_x4
+:tadd reg_8_3, sp, #imm_0_8_x4 is op_11_5=0x000f & reg_8_3 & sp & imm_0_8_x4
 {
 }
 
 # tadd%c %D, %S
-:tadd^cond hi_reg_7_1_and_0_3, hi_reg_6_1_and_3_3 is op_8_8=0x0004 & cond & hi_reg_7_1_and_0_3 & hi_reg_6_1_and_3_3
+:tadd hi_reg_7_1_and_0_3, hi_reg_6_1_and_3_3 is op_8_8=0x0004 & hi_reg_7_1_and_0_3 & hi_reg_6_1_and_3_3
 {
 }
 
 # tadd%c sp, #%0-6W
-:tadd^cond sp, #imm_0_7_x4 is op_7_9=0x00c0 & cond & sp & imm_0_7_x4
+:tadd sp, #imm_0_7_x4 is op_7_9=0x00c0 & sp & imm_0_7_x4
 {
 }
 
 # taddc%C %0-2r, %3-5r
-:taddc^cond_or_s reg_0_3, reg_3_3 is op_6_10=0x0005 & cond_or_s & reg_0_3 & reg_3_3
+:taddcs reg_0_3, reg_3_3 is op_6_10=0x0005 & reg_0_3 & reg_3_3
 {
 }
 
 # tand%C %0-2r, %3-5r
-:tand^cond_or_s reg_0_3, reg_3_3 is op_6_10=0x0000 & cond_or_s & reg_0_3 & reg_3_3
+:tands reg_0_3, reg_3_3 is op_6_10=0x0000 & reg_0_3 & reg_3_3
 {
 }
 
 # tasr%C %0-2r, %3-5r
-:tasr^cond_or_s reg_0_3, reg_3_3 is op_6_10=0x0004 & cond_or_s & reg_0_3 & reg_3_3
+:tasrs reg_0_3, reg_3_3 is op_6_10=0x0004 & reg_0_3 & reg_3_3
 {
 }
 
 # tasr%C %0-2r, %3-5r, %s
-:tasr^cond_or_s reg_0_3, reg_3_3, right_shift_imm_6_5 is op_11_5=0x001c & cond_or_s & reg_0_3 & reg_3_3 & right_shift_imm_6_5
+:tasrs reg_0_3, reg_3_3, right_shift_imm_6_5 is op_11_5=0x001c & reg_0_3 & reg_3_3 & right_shift_imm_6_5
 {
 }
 
 # tbclr%C %0-2r, %3-5r
-:tbclr^cond_or_s reg_0_3, reg_3_3 is op_6_10=0x000e & cond_or_s & reg_0_3 & reg_3_3
+:tbclrs reg_0_3, reg_3_3 is op_6_10=0x000e & reg_0_3 & reg_3_3
 {
 }
 
 # tcmp%c %0-2r, %3-5r
-:tcmp^cond reg_0_3, reg_3_3 is op_6_10=0x000a & cond & reg_0_3 & reg_3_3
+:tcmp reg_0_3, reg_3_3 is op_6_10=0x000a & reg_0_3 & reg_3_3
 {
 }
 
 # tcmp%c %8-10r, #%0-7d
-:tcmp^cond reg_8_3, #imm_0_8 is op_11_5=0x0015 & cond & reg_8_3 & imm_0_8
+:tcmp reg_8_3, #imm_0_8 is op_11_5=0x0015 & reg_8_3 & imm_0_8
 {
 }
 
 # tcmp%c %D, %S
-:tcmp^cond hi_reg_7_1_and_0_3, hi_reg_6_1_and_3_3 is op_8_8=0x0005 & cond & hi_reg_7_1_and_0_3 & hi_reg_6_1_and_3_3
+:tcmp hi_reg_7_1_and_0_3, hi_reg_6_1_and_3_3 is op_8_8=0x0005 & hi_reg_7_1_and_0_3 & hi_reg_6_1_and_3_3
 {
 }
 
 # tcmpn%c %0-2r, %3-5r
-:tcmpn^cond reg_0_3, reg_3_3 is op_6_10=0x000b & cond & reg_0_3 & reg_3_3
+:tcmpn reg_0_3, reg_3_3 is op_6_10=0x000b & reg_0_3 & reg_3_3
 {
 }
 
@@ -211,127 +201,127 @@ attach names
 }
 
 # tj%c.n %0-10B%x
-:tj^cond".n" displacement_0_11 is op_11_5=0x0010 & cond & displacement_0_11
+:tj".n" displacement_0_11 is op_11_5=0x0010 & displacement_0_11
 {
 }
 
 # tjex%c %S%x
-:tjex^cond hi_reg_6_1_and_3_3 is op_7_9=0x000e & cond & hi_reg_6_1_and_3_3
+:tjex hi_reg_6_1_and_3_3 is op_7_9=0x000e & hi_reg_6_1_and_3_3
 {
 }
 
 # tloadm%c %8-10r!, %M
-:tloadm^cond reg_8_3!, {} is op_11_5=0x001b & cond & reg_8_3
+:tloadm reg_8_3!, {} is op_11_5=0x001b & reg_8_3
 {
 }
 
 # tloadr%10'b%c %0-2r, [%3-5r, %6-8r]
-:tloadr^flag_10_1^cond reg_0_3, [reg_3_3, reg_6_3] is op_9_1=0x0000 & op_11_5=0x0003 & flag_10_1 & cond & reg_0_3 & reg_3_3 & reg_6_3
+:tloadr^flag_10_1 reg_0_3, [reg_3_3, reg_6_3] is op_9_1=0x0000 & op_11_5=0x0003 & flag_10_1 & reg_0_3 & reg_3_3 & reg_6_3
 {
 }
 
 # tloadr%c %0-2r, [%3-5r, #%6-10W]
-:tloadr^cond reg_0_3, [reg_3_3, #imm_6_5_x4] is op_11_5=0x000b & cond & reg_0_3 & reg_3_3 & imm_6_5_x4
+:tloadr reg_0_3, [reg_3_3, #imm_6_5_x4] is op_11_5=0x000b & reg_0_3 & reg_3_3 & imm_6_5_x4
 {
 }
 
 # tloadr%c %8-10r, [pc, #%0-7W]
-:tloadr^cond reg_8_3, [pc, #imm_0_8_x4] is op_11_5=0x0001 & cond & reg_8_3 & pc & imm_0_8_x4
+:tloadr reg_8_3, [pc, #imm_0_8_x4] is op_11_5=0x0001 & reg_8_3 & pc & imm_0_8_x4
 {
 }
 
 # tloadr%c %8-10r, [sp, #%0-7W]
-:tloadr^cond reg_8_3, [sp, #imm_0_8_x4] is op_11_5=0x0007 & cond & reg_8_3 & sp & imm_0_8_x4
+:tloadr reg_8_3, [sp, #imm_0_8_x4] is op_11_5=0x0007 & reg_8_3 & sp & imm_0_8_x4
 {
 }
 
 # tloadrb%c %0-2r, [%3-5r, #%6-10d]
-:tloadrb^cond reg_0_3, [reg_3_3, #imm_6_5] is op_11_5=0x0009 & cond & reg_0_3 & reg_3_3 & imm_6_5
+:tloadrb reg_0_3, [reg_3_3, #imm_6_5] is op_11_5=0x0009 & reg_0_3 & reg_3_3 & imm_6_5
 {
 }
 
 # tloadrh%c %0-2r, [%3-5r, #%6-10H]
-:tloadrh^cond reg_0_3, [reg_3_3, #imm_6_5_x2] is op_11_5=0x0005 & cond & reg_0_3 & reg_3_3 & imm_6_5_x2
+:tloadrh reg_0_3, [reg_3_3, #imm_6_5_x2] is op_11_5=0x0005 & reg_0_3 & reg_3_3 & imm_6_5_x2
 {
 }
 
 # tloadrh%c %0-2r, [%3-5r, %6-8r]
-:tloadrh^cond reg_0_3, [reg_3_3, reg_6_3] is op_9_7=0x000d & cond & reg_0_3 & reg_3_3 & reg_6_3
+:tloadrh reg_0_3, [reg_3_3, reg_6_3] is op_9_7=0x000d & reg_0_3 & reg_3_3 & reg_6_3
 {
 }
 
 # tloadrs%11?hb%c %0-2r, [%3-5r, %6-8r]
-:tloadrs^flag_11_1^cond reg_0_3, [reg_3_3, reg_6_3] is op_9_2=0x0003 & op_12_4=0x0001 & flag_11_1 & cond & reg_0_3 & reg_3_3 & reg_6_3
+:tloadrs^flag_11_1 reg_0_3, [reg_3_3, reg_6_3] is op_9_2=0x0003 & op_12_4=0x0001 & flag_11_1 & reg_0_3 & reg_3_3 & reg_6_3
 {
 }
 
 # tmcsr%c %0-2r
-:tmcsr^cond reg_0_3 is op_3_13=0x0d78 & cond & reg_0_3
+:tmcsr reg_0_3 is op_3_13=0x0d78 & reg_0_3
 {
 }
 
 # tmov%C %8-10r, #%0-7d
-:tmov^cond_or_s reg_8_3, #imm_0_8 is op_11_5=0x0014 & cond_or_s & reg_8_3 & imm_0_8
+:tmovs reg_8_3, #imm_0_8 is op_11_5=0x0014 & reg_8_3 & imm_0_8
 {
 }
 
 # tmov%c %D, %S
-:tmov^cond hi_reg_7_1_and_0_3, hi_reg_6_1_and_3_3 is op_8_8=0x0006 & cond & hi_reg_7_1_and_0_3 & hi_reg_6_1_and_3_3
+:tmov hi_reg_7_1_and_0_3, hi_reg_6_1_and_3_3 is op_8_8=0x0006 & hi_reg_7_1_and_0_3 & hi_reg_6_1_and_3_3
 {
 }
 
 # tmovn%C %0-2r, %3-5r
-:tmovn^cond_or_s reg_0_3, reg_3_3 is op_6_10=0x000f & cond_or_s & reg_0_3 & reg_3_3
+:tmovns reg_0_3, reg_3_3 is op_6_10=0x000f & reg_0_3 & reg_3_3
 {
 }
 
 # tmrcs%c %0-2r
-:tmrcs^cond reg_0_3 is op_3_13=0x0d79 & cond & reg_0_3
+:tmrcs reg_0_3 is op_3_13=0x0d79 & reg_0_3
 {
 }
 
 # tmrss%c %0-2r
-:tmrss^cond reg_0_3 is op_3_13=0x0d7b & cond & reg_0_3
+:tmrss reg_0_3 is op_3_13=0x0d7b & reg_0_3
 {
 }
 
 # tmssr%c %0-2r
-:tmssr^cond reg_0_3 is op_3_13=0x0d7a & cond & reg_0_3
+:tmssr reg_0_3 is op_3_13=0x0d7a & reg_0_3
 {
 }
 
 # tmul%C %0-2r, %3-5r
-:tmul^cond_or_s reg_0_3, reg_3_3 is op_6_10=0x000d & cond_or_s & reg_0_3 & reg_3_3
+:tmuls reg_0_3, reg_3_3 is op_6_10=0x000d & reg_0_3 & reg_3_3
 {
 }
 
 # tnand%c %0-2r, %3-5r
-:tnand^cond reg_0_3, reg_3_3 is op_6_10=0x0008 & cond & reg_0_3 & reg_3_3
+:tnand reg_0_3, reg_3_3 is op_6_10=0x0008 & reg_0_3 & reg_3_3
 {
 }
 
 # tneg%C %0-2r, %3-5r
-:tneg^cond_or_s reg_0_3, reg_3_3 is op_6_10=0x0009 & cond_or_s & reg_0_3 & reg_3_3
+:tnegs reg_0_3, reg_3_3 is op_6_10=0x0009 & reg_0_3 & reg_3_3
 {
 }
 
 # tnop%c
-:tnop^cond is op_0_16=0x46c0 & cond
+:tnop is op_0_16=0x46c0
 {
 }
 
 # tor%C %0-2r, %3-5r
-:tor^cond_or_s reg_0_3, reg_3_3 is op_6_10=0x000c & cond_or_s & reg_0_3 & reg_3_3
+:tors reg_0_3, reg_3_3 is op_6_10=0x000c & reg_0_3 & reg_3_3
 {
 }
 
 # tpop%c %O
-:tpop^cond {pc} is op_9_7=0x0036 & cond & pc
+:tpop {pc} is op_9_7=0x0036 & pc
 {
 }
 
 # tpush%c %N
-:tpush^cond {lr} is op_9_7=0x0032 & cond & lr
+:tpush {lr} is op_9_7=0x0032 & lr
 {
 }
 
@@ -341,96 +331,96 @@ attach names
 }
 
 # trotr%C %0-2r, %3-5r
-:trotr^cond_or_s reg_0_3, reg_3_3 is op_6_10=0x0007 & cond_or_s & reg_0_3 & reg_3_3
+:trotrs reg_0_3, reg_3_3 is op_6_10=0x0007 & reg_0_3 & reg_3_3
 {
 }
 
 # tserv%c %0-7d
-:tserv^cond imm_0_8 is op_8_8=0x00cf & cond & imm_0_8
+:tserv imm_0_8 is op_8_8=0x00cf & imm_0_8
 {
 }
 
 # tshftl%C %0-2r, %3-5r
-:tshftl^cond_or_s reg_0_3, reg_3_3 is op_6_10=0x0002 & cond_or_s & reg_0_3 & reg_3_3
+:tshftls reg_0_3, reg_3_3 is op_6_10=0x0002 & reg_0_3 & reg_3_3
 {
 }
 
 # tshftl%C %0-2r, %3-5r, #%6-10d
-:tshftl^cond_or_s reg_0_3, reg_3_3, #imm_6_5 is op_11_5=0x001e & cond_or_s & reg_0_3 & reg_3_3 & imm_6_5
+:tshftls reg_0_3, reg_3_3, #imm_6_5 is op_11_5=0x001e & reg_0_3 & reg_3_3 & imm_6_5
 {
 }
 
 # tshftr%C %0-2r, %3-5r
-:tshftr^cond_or_s reg_0_3, reg_3_3 is op_6_10=0x0003 & cond_or_s & reg_0_3 & reg_3_3
+:tshftrs reg_0_3, reg_3_3 is op_6_10=0x0003 & reg_0_3 & reg_3_3
 {
 }
 
 # tshftr%C %0-2r, %3-5r, %s
-:tshftr^cond_or_s reg_0_3, reg_3_3, right_shift_imm_6_5 is op_11_5=0x001f & cond_or_s & reg_0_3 & reg_3_3 & right_shift_imm_6_5
+:tshftrs reg_0_3, reg_3_3, right_shift_imm_6_5 is op_11_5=0x001f & reg_0_3 & reg_3_3 & right_shift_imm_6_5
 {
 }
 
 # tstorem%c %8-10r!, %M
-:tstorem^cond reg_8_3!, {} is op_11_5=0x001a & cond & reg_8_3
+:tstorem reg_8_3!, {} is op_11_5=0x001a & reg_8_3
 {
 }
 
 # tstorer%10'b%c %0-2r, [%3-5r, %6-8r]
-:tstorer^flag_10_1^cond reg_0_3, [reg_3_3, reg_6_3] is op_9_1=0x0000 & op_11_5=0x0002 & flag_10_1 & cond & reg_0_3 & reg_3_3 & reg_6_3
+:tstorer^flag_10_1 reg_0_3, [reg_3_3, reg_6_3] is op_9_1=0x0000 & op_11_5=0x0002 & flag_10_1 & reg_0_3 & reg_3_3 & reg_6_3
 {
 }
 
 # tstorer%c %0-2r, [%3-5r, #%6-10W]
-:tstorer^cond reg_0_3, [reg_3_3, #imm_6_5_x4] is op_11_5=0x000a & cond & reg_0_3 & reg_3_3 & imm_6_5_x4
+:tstorer reg_0_3, [reg_3_3, #imm_6_5_x4] is op_11_5=0x000a & reg_0_3 & reg_3_3 & imm_6_5_x4
 {
 }
 
 # tstorer%c %8-10r, [sp, #%0-7W]
-:tstorer^cond reg_8_3, [sp, #imm_0_8_x4] is op_11_5=0x0006 & cond & reg_8_3 & sp & imm_0_8_x4
+:tstorer reg_8_3, [sp, #imm_0_8_x4] is op_11_5=0x0006 & reg_8_3 & sp & imm_0_8_x4
 {
 }
 
 # tstorerb%c %0-2r, [%3-5r, #%6-10d]
-:tstorerb^cond reg_0_3, [reg_3_3, #imm_6_5] is op_11_5=0x0008 & cond & reg_0_3 & reg_3_3 & imm_6_5
+:tstorerb reg_0_3, [reg_3_3, #imm_6_5] is op_11_5=0x0008 & reg_0_3 & reg_3_3 & imm_6_5
 {
 }
 
 # tstorerh%c %0-2r, [%3-5r, #%6-10H]
-:tstorerh^cond reg_0_3, [reg_3_3, #imm_6_5_x2] is op_11_5=0x0004 & cond & reg_0_3 & reg_3_3 & imm_6_5_x2
+:tstorerh reg_0_3, [reg_3_3, #imm_6_5_x2] is op_11_5=0x0004 & reg_0_3 & reg_3_3 & imm_6_5_x2
 {
 }
 
 # tstorerh%c %0-2r, [%3-5r, %6-8r]
-:tstorerh^cond reg_0_3, [reg_3_3, reg_6_3] is op_9_7=0x0009 & cond & reg_0_3 & reg_3_3 & reg_6_3
+:tstorerh reg_0_3, [reg_3_3, reg_6_3] is op_9_7=0x0009 & reg_0_3 & reg_3_3 & reg_6_3
 {
 }
 
 # tsub%C %0-2r, %3-5r, #%6-8d
-:tsub^cond_or_s reg_0_3, reg_3_3, #imm_6_3 is op_9_7=0x0077 & cond_or_s & reg_0_3 & reg_3_3 & imm_6_3
+:tsubs reg_0_3, reg_3_3, #imm_6_3 is op_9_7=0x0077 & reg_0_3 & reg_3_3 & imm_6_3
 {
 }
 
 # tsub%C %0-2r, %3-5r, %6-8r
-:tsub^cond_or_s reg_0_3, reg_3_3, reg_6_3 is op_9_7=0x0075 & cond_or_s & reg_0_3 & reg_3_3 & reg_6_3
+:tsubs reg_0_3, reg_3_3, reg_6_3 is op_9_7=0x0075 & reg_0_3 & reg_3_3 & reg_6_3
 {
 }
 
 # tsub%C %8-10r, #%0-7d
-:tsub^cond_or_s reg_8_3, #imm_0_8 is op_11_5=0x0017 & cond_or_s & reg_8_3 & imm_0_8
+:tsubs reg_8_3, #imm_0_8 is op_11_5=0x0017 & reg_8_3 & imm_0_8
 {
 }
 
 # tsub%c sp, #%0-6W
-:tsub^cond sp, #imm_0_7_x4 is op_7_9=0x00c1 & cond & sp & imm_0_7_x4
+:tsub sp, #imm_0_7_x4 is op_7_9=0x00c1 & sp & imm_0_7_x4
 {
 }
 
 # tsubc%C %0-2r, %3-5r
-:tsubc^cond_or_s reg_0_3, reg_3_3 is op_6_10=0x0006 & cond_or_s & reg_0_3 & reg_3_3
+:tsubcs reg_0_3, reg_3_3 is op_6_10=0x0006 & reg_0_3 & reg_3_3
 {
 }
 
 # txor%C %0-2r, %3-5r
-:txor^cond_or_s reg_0_3, reg_3_3 is op_6_10=0x0001 & cond_or_s & reg_0_3 & reg_3_3
+:txors reg_0_3, reg_3_3 is op_6_10=0x0001 & reg_0_3 & reg_3_3
 {
 }

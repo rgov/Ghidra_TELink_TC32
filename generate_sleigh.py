@@ -303,17 +303,23 @@ class PercentLowerC(ControlCode):
   PATTERN = r'%c'
   
   def expand(self):
-    return ContextVariable('cond', Register('flags'), 0, 4)
+    if False:
+      # The TC32 does not seem to have conditional instructions like Thumb
+      return ContextVariable('cond', Register('flags'), 0, 4)
+    return None
 
 class PercentUpperC(ControlCode):
   '''print the condition code, or 's' if not conditional'''
   PATTERN = r'%C'
   
   def expand(self):
-    return ComputedValue(
-      'cond_or_s',
-      children=[ ContextVariable('cond', Register('flags'), 0, 4) ]
-    )
+    if False:
+      # The TC32 does not seem to have conditional instructions like Thumb
+      return ComputedValue(
+        'cond_or_s',
+        children=[ ContextVariable('cond', Register('flags'), 0, 4) ]
+      )
+    return 's'
 
 class PercentLowerX(ControlCode):
   '''print warning if conditional an not at end of IT block'''
@@ -576,7 +582,7 @@ for value, mask, asm, expr, conditions in insns:
   # concatenate identifiers and literal characters.
   print(':%s' % expr.children[0], end='')
   prev_identifier = True
-  for t in expr.children[1:]:
+  for i, t in enumerate(expr.children[1:]):
     if t == ' ':
       print(' ', end='')
       prev_identifier = False
@@ -591,7 +597,9 @@ for value, mask, asm, expr, conditions in insns:
     prev_identifier = False
     
     if isinstance(t, str):
-      if any(x.isalpha() for x in t):
+      if i == 0 and re.match('^[a-zA-Z_]+$', t):
+        print(t, end = '')
+      elif any(x.isalpha() for x in t):
         if prev_identifier:
           print('^', end='')
         print('"%s"' % t, end='')
