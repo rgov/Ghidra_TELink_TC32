@@ -15,8 +15,8 @@ April 14, 2019
 
 import re
 
-# These are extracted from the `thumb_opcodes` array from tc32-elf-objdump.exe,
-# which was repurposed from the original code.
+# These are extracted from the `thumb_opcodes` and `thumb_opcodes32` arrays
+# from tc32-elf-objdump.exe, which was repurposed from the original code.
 # 
 # Each (value, mask, assembler) tuple tells the `print_insn_thumb16` function,
 # also repurposed, how to decode an instruction.
@@ -24,69 +24,71 @@ import re
 # Note that bitfield ranges here are specified with bit 0 as the *last* bit of
 # the encoded instruction.
 insns = [
-  (0x46c0, 0xffff, 'tnop%c\\t\\t\\t; (mov r8, r8)'),
-  (0x0000, 0xffc0, 'tand%C\\t%0-2r, %3-5r'),
-  (0x0040, 0xffc0, 'txor%C\\t%0-2r, %3-5r'),
-  (0x0080, 0xffc0, 'tshftl%C\\t%0-2r, %3-5r'),
-  (0x00c0, 0xffc0, 'tshftr%C\\t%0-2r, %3-5r'),
-  (0x0100, 0xffc0, 'tasr%C\\t%0-2r, %3-5r'),
-  (0x0140, 0xffc0, 'taddc%C\\t%0-2r, %3-5r'),
-  (0x0180, 0xffc0, 'tsubc%C\\t%0-2r, %3-5r'),
-  (0x01c0, 0xffc0, 'trotr%C\\t%0-2r, %3-5r'),
-  (0x0200, 0xffc0, 'tnand%c\\t%0-2r, %3-5r'),
-  (0x0240, 0xffc0, 'tneg%C\\t%0-2r, %3-5r'),
-  (0x0280, 0xffc0, 'tcmp%c\\t%0-2r, %3-5r'),
-  (0x02c0, 0xffc0, 'tcmpn%c\\t%0-2r, %3-5r'),
-  (0x0300, 0xffc0, 'tor%C\\t%0-2r, %3-5r'),
-  (0x0340, 0xffc0, 'tmul%C\\t%0-2r, %3-5r'),
-  (0x0380, 0xffc0, 'tbclr%C\\t%0-2r, %3-5r'),
-  (0x03c0, 0xffc0, 'tmovn%C\\t%0-2r, %3-5r'),
-  (0x6bc0, 0xfff8, 'tmcsr%c\\t%0-2r'),
-  (0x6bc8, 0xfff8, 'tmrcs%c\\t%0-2r'),
-  (0x6bd0, 0xfff8, 'tmssr%c\\t%0-2r'),
-  (0x6bd8, 0xfff8, 'tmrss%c\\t%0-2r'),
-  (0x6800, 0xfe00, 'treti\\t%O'),
-  (0x6000, 0xff80, 'tadd%c\\tsp, #%0-6W'),
-  (0x6080, 0xff80, 'tsub%c\\tsp, #%0-6W'),
-  (0x0700, 0xff80, 'tjex%c\\t%S%x'),
-  (0x0400, 0xff00, 'tadd%c\\t%D, %S'),
-  (0x0500, 0xff00, 'tcmp%c\\t%D, %S'),
-  (0x0600, 0xff00, 'tmov%c\\t%D, %S'),
-  (0x6400, 0xfe00, 'tpush%c\\t%N'),
-  (0x6c00, 0xfe00, 'tpop%c\\t%O'),
-  (0xe800, 0xfe00, 'tadd%C\\t%0-2r, %3-5r, %6-8r'),
-  (0xea00, 0xfe00, 'tsub%C\\t%0-2r, %3-5r, %6-8r'),
-  (0xec00, 0xfe00, 'tadd%C\\t%0-2r, %3-5r, #%6-8d'),
-  (0xee00, 0xfe00, 'tsub%C\\t%0-2r, %3-5r, #%6-8d'),
-  (0x1200, 0xfe00, 'tstorerh%c\\t%0-2r, [%3-5r, %6-8r]'),
-  (0x1a00, 0xfe00, 'tloadrh%c\\t%0-2r, [%3-5r, %6-8r]'),
-  (0x1600, 0xf600, 'tloadrs%11?hb%c\\t%0-2r, [%3-5r, %6-8r]'),
-  (0x1000, 0xfa00, "tstorer%10'b%c\t%0-2r, [%3-5r, %6-8r]"),
-  (0x1800, 0xfa00, "tloadr%10'b%c\t%0-2r, [%3-5r, %6-8r]"),
-  (0xf000, 0xf800, 'tshftl%C\\t%0-2r, %3-5r, #%6-10d'),
-  (0xf800, 0xf800, 'tshftr%C\\t%0-2r, %3-5r, %s'),
-  (0xe000, 0xf800, 'tasr%C\\t%0-2r, %3-5r, %s'),
-  (0xa000, 0xf800, 'tmov%C\\t%8-10r, #%0-7d'),
-  (0xa800, 0xf800, 'tcmp%c\\t%8-10r, #%0-7d'),
-  (0xb000, 0xf800, 'tadd%C\\t%8-10r, #%0-7d'),
-  (0xb800, 0xf800, 'tsub%C\\t%8-10r, #%0-7d'),
-  (0x0800, 0xf800, 'tloadr%c\\t%8-10r, [pc, #%0-7W]\\t; (%0-7a)'),
-  (0x5000, 0xf800, 'tstorer%c\\t%0-2r, [%3-5r, #%6-10W]'),
-  (0x5800, 0xf800, 'tloadr%c\\t%0-2r, [%3-5r, #%6-10W]'),
-  (0x4000, 0xf800, 'tstorerb%c\\t%0-2r, [%3-5r, #%6-10d]'),
-  (0x4800, 0xf800, 'tloadrb%c\\t%0-2r, [%3-5r, #%6-10d]'),
-  (0x2000, 0xf800, 'tstorerh%c\\t%0-2r, [%3-5r, #%6-10H]'),
-  (0x2800, 0xf800, 'tloadrh%c\\t%0-2r, [%3-5r, #%6-10H]'),
-  (0x3000, 0xf800, 'tstorer%c\\t%8-10r, [sp, #%0-7W]'),
-  (0x3800, 0xf800, 'tloadr%c\\t%8-10r, [sp, #%0-7W]'),
-  (0x7000, 0xf800, 'tadd%c\\t%8-10r, pc, #%0-7W\\t; (t.add %8-10r, %0-7a)'),
-  (0x7800, 0xf800, 'tadd%c\\t%8-10r, sp, #%0-7W'),
-  (0xd000, 0xf800, 'tstorem%c\\t%8-10r!, %M'),
-  (0xd800, 0xf800, 'tloadm%c\\t%8-10r!, %M'),
-  (0xcf00, 0xff00, 'tserv%c\\t%0-7d'),
-#  (0xce00, 0xfe00, 'undefined instruction %0-31x'),
-  (0xc000, 0xf000, 'tj%8-11c.n\\t%0-7B%X'),
-  (0x8000, 0xf800, 'tj%c.n\\t%0-10B%x'),
+  (16, 0x46c0, 0xffff, 'tnop%c\\t\\t\\t; (mov r8, r8)'),
+  (16, 0x0000, 0xffc0, 'tand%C\\t%0-2r, %3-5r'),
+  (16, 0x0040, 0xffc0, 'txor%C\\t%0-2r, %3-5r'),
+  (16, 0x0080, 0xffc0, 'tshftl%C\\t%0-2r, %3-5r'),
+  (16, 0x00c0, 0xffc0, 'tshftr%C\\t%0-2r, %3-5r'),
+  (16, 0x0100, 0xffc0, 'tasr%C\\t%0-2r, %3-5r'),
+  (16, 0x0140, 0xffc0, 'taddc%C\\t%0-2r, %3-5r'),
+  (16, 0x0180, 0xffc0, 'tsubc%C\\t%0-2r, %3-5r'),
+  (16, 0x01c0, 0xffc0, 'trotr%C\\t%0-2r, %3-5r'),
+  (16, 0x0200, 0xffc0, 'tnand%c\\t%0-2r, %3-5r'),
+  (16, 0x0240, 0xffc0, 'tneg%C\\t%0-2r, %3-5r'),
+  (16, 0x0280, 0xffc0, 'tcmp%c\\t%0-2r, %3-5r'),
+  (16, 0x02c0, 0xffc0, 'tcmpn%c\\t%0-2r, %3-5r'),
+  (16, 0x0300, 0xffc0, 'tor%C\\t%0-2r, %3-5r'),
+  (16, 0x0340, 0xffc0, 'tmul%C\\t%0-2r, %3-5r'),
+  (16, 0x0380, 0xffc0, 'tbclr%C\\t%0-2r, %3-5r'),
+  (16, 0x03c0, 0xffc0, 'tmovn%C\\t%0-2r, %3-5r'),
+  (16, 0x6bc0, 0xfff8, 'tmcsr%c\\t%0-2r'),
+  (16, 0x6bc8, 0xfff8, 'tmrcs%c\\t%0-2r'),
+  (16, 0x6bd0, 0xfff8, 'tmssr%c\\t%0-2r'),
+  (16, 0x6bd8, 0xfff8, 'tmrss%c\\t%0-2r'),
+  (16, 0x6800, 0xfe00, 'treti\\t%O'),
+  (16, 0x6000, 0xff80, 'tadd%c\\tsp, #%0-6W'),
+  (16, 0x6080, 0xff80, 'tsub%c\\tsp, #%0-6W'),
+  (16, 0x0700, 0xff80, 'tjex%c\\t%S%x'),
+  (16, 0x0400, 0xff00, 'tadd%c\\t%D, %S'),
+  (16, 0x0500, 0xff00, 'tcmp%c\\t%D, %S'),
+  (16, 0x0600, 0xff00, 'tmov%c\\t%D, %S'),
+  (16, 0x6400, 0xfe00, 'tpush%c\\t%N'),
+  (16, 0x6c00, 0xfe00, 'tpop%c\\t%O'),
+  (16, 0xe800, 0xfe00, 'tadd%C\\t%0-2r, %3-5r, %6-8r'),
+  (16, 0xea00, 0xfe00, 'tsub%C\\t%0-2r, %3-5r, %6-8r'),
+  (16, 0xec00, 0xfe00, 'tadd%C\\t%0-2r, %3-5r, #%6-8d'),
+  (16, 0xee00, 0xfe00, 'tsub%C\\t%0-2r, %3-5r, #%6-8d'),
+  (16, 0x1200, 0xfe00, 'tstorerh%c\\t%0-2r, [%3-5r, %6-8r]'),
+  (16, 0x1a00, 0xfe00, 'tloadrh%c\\t%0-2r, [%3-5r, %6-8r]'),
+  (16, 0x1600, 0xf600, 'tloadrs%11?hb%c\\t%0-2r, [%3-5r, %6-8r]'),
+  (16, 0x1000, 0xfa00, "tstorer%10'b%c\t%0-2r, [%3-5r, %6-8r]"),
+  (16, 0x1800, 0xfa00, "tloadr%10'b%c\t%0-2r, [%3-5r, %6-8r]"),
+  (16, 0xf000, 0xf800, 'tshftl%C\\t%0-2r, %3-5r, #%6-10d'),
+  (16, 0xf800, 0xf800, 'tshftr%C\\t%0-2r, %3-5r, %s'),
+  (16, 0xe000, 0xf800, 'tasr%C\\t%0-2r, %3-5r, %s'),
+  (16, 0xa000, 0xf800, 'tmov%C\\t%8-10r, #%0-7d'),
+  (16, 0xa800, 0xf800, 'tcmp%c\\t%8-10r, #%0-7d'),
+  (16, 0xb000, 0xf800, 'tadd%C\\t%8-10r, #%0-7d'),
+  (16, 0xb800, 0xf800, 'tsub%C\\t%8-10r, #%0-7d'),
+  (16, 0x0800, 0xf800, 'tloadr%c\\t%8-10r, [pc, #%0-7W]\\t; (%0-7a)'),
+  (16, 0x5000, 0xf800, 'tstorer%c\\t%0-2r, [%3-5r, #%6-10W]'),
+  (16, 0x5800, 0xf800, 'tloadr%c\\t%0-2r, [%3-5r, #%6-10W]'),
+  (16, 0x4000, 0xf800, 'tstorerb%c\\t%0-2r, [%3-5r, #%6-10d]'),
+  (16, 0x4800, 0xf800, 'tloadrb%c\\t%0-2r, [%3-5r, #%6-10d]'),
+  (16, 0x2000, 0xf800, 'tstorerh%c\\t%0-2r, [%3-5r, #%6-10H]'),
+  (16, 0x2800, 0xf800, 'tloadrh%c\\t%0-2r, [%3-5r, #%6-10H]'),
+  (16, 0x3000, 0xf800, 'tstorer%c\\t%8-10r, [sp, #%0-7W]'),
+  (16, 0x3800, 0xf800, 'tloadr%c\\t%8-10r, [sp, #%0-7W]'),
+  (16, 0x7000, 0xf800, 'tadd%c\\t%8-10r, pc, #%0-7W\\t; (t.add %8-10r, %0-7a)'),
+  (16, 0x7800, 0xf800, 'tadd%c\\t%8-10r, sp, #%0-7W'),
+  (16, 0xd000, 0xf800, 'tstorem%c\\t%8-10r!, %M'),
+  (16, 0xd800, 0xf800, 'tloadm%c\\t%8-10r!, %M'),
+  (16, 0xcf00, 0xff00, 'tserv%c\\t%0-7d'),
+# (16, 0xce00, 0xfe00, 'undefined instruction %0-31x'),
+  (16, 0xc000, 0xf000, 'tj%8-11c.n\\t%0-7B%X'),
+  (16, 0x8000, 0xf800, 'tj%c.n\\t%0-10B%x'),
+  (32, 0x9000c000, 0xf800d000, 'tjlex%c\\t%B%x'),
+  (32, 0x90009800, 0xf800f800, 'tjl%c\\t%B%x'),
 ]
 
 
@@ -445,7 +447,7 @@ class RegisterReference(ControlCode):
 
 # Parse all of the instructions' assembler format strings
 _insns = []
-for value, mask, asm in insns:
+for size, value, mask, asm in insns:
   # Normalize whitespace and strip comments
   asm = re.sub(r'\\t|\s+', ' ', asm)
   asm = re.sub(r'\s*;.*$', '', asm)
@@ -498,9 +500,9 @@ for value, mask, asm in insns:
       conditions.append((Field('op', offset, len(g)), v))
     offset += len(g)
   
-  _insns.append((value, mask, asm, e, conditions))
+  _insns.append((size, value, mask, asm, e, conditions))
 insns = _insns
-insns.sort(key=lambda x: x[2])  # sort by asm
+insns.sort(key=lambda x: x[3])  # sort by asm
 
 
 ################################################################################
@@ -510,7 +512,8 @@ insns.sort(key=lambda x: x[2])  # sort by asm
 # will use from the instruction encoding.
 
 allfields = set()
-for _, _, _, e, conditions in insns:
+for size, _, _, _, e, conditions in insns:
+  if size != 16: continue
   allfields.update(e.findall(lambda x: isinstance(x, Field)))
   allfields.update(f for f, v in conditions)
 
@@ -532,7 +535,7 @@ print()
 # status flags).
 
 contextregs = {}
-for _, _, _, e, _ in insns:
+for _, _, _, _, e, _ in insns:
     for v in e.findall(lambda x: isinstance(x, ContextVariable)):
       if v.register not in contextregs:
         contextregs[v.register] = set()
@@ -553,7 +556,7 @@ print()
 # Generate the tables for the special variables
 
 allcomputed = set()
-for _, _, _, e, _ in insns:
+for _, _, _, _, e, _ in insns:
   fields = e.findall(lambda x: isinstance(x, ComputedValue))
   allcomputed.update(fields)
 
@@ -573,7 +576,7 @@ print()
 
 
 # Generate SLEIGH code from the instructions
-for value, mask, asm, expr, conditions in insns:
+for size, value, mask, asm, expr, conditions in insns:
   # Output the objdump specification as a comment
   print('#', asm)
   
