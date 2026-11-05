@@ -7,20 +7,58 @@
 # Memory architecture
 define endian=little;
 define alignment=2;  # TODO: Verify. See 4.2 "Alignment Definition."
-define space RAM type=ram_space size=2 default;
-define space register type=register_space size=2;
+define space RAM type=ram_space size=4 default;
+define space register type=register_space size=4;
 
 
 # Registers
-define register offset=0x0000 size=2 [
-  r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 r10 r11 r12 sp lr pc
+define register offset=0x0000 size=4 [
+  r0 r1 r2 r3 r4 r5 r6 r7 r8 r9 sl fp ip sp lr pc
   # TODO: Status registers?
 ];
 
-define register offset=0x1000 size=4 [
-  flags # FIXME why must be 32-bits?
-];
+define register offset=0x0040 size=1 [ NG ZR CY OV tmpNG tmpZR tmpCY tmpOV shift_carry TB Q GE1 GE2 GE3 GE4 ]; 
+define register offset=0x0050 size=4 [ cpsr spsr ];
+define register offset=0x0060 size=4 [ mult_addr ];	# Special internal register for dealing with multiple stores/loads
 
+macro th_addflags(op1,op2) {
+  tmpCY = carry(op1,op2);
+  tmpOV = scarry(op1,op2);
+}
+
+# Note (unlike x86) carry flag is SET if there is NO borrow
+macro th_subflags(op1,op2) {
+  tmpCY = op2 <= op1;
+  tmpOV = sborrow(op1,op2);
+}
+macro th_subflags0(op2) {
+  tmpCY = op2 == 0;
+  tmpOV = sborrow(0,op2);
+}
+
+macro grabbit(op1,bit) {
+  local tmp = (op1 >> bit) & 1;
+  tmpCY = (tmp != 0);
+}
+
+macro resflags(result) {
+  tmpNG = result s< 0;
+  tmpZR = result == 0;
+}
+
+macro th_logicflags() {
+  tmpCY = shift_carry;
+  tmpOV = OV;
+}
+
+macro th_affectflags() {
+  CY = tmpCY; ZR = tmpZR; NG = tmpNG; OV = tmpOV;
+}
+
+define pcodeop setExecutionMode; # SVC, IRQ mode etc
+define pcodeop getExecutionMode;
+define pcodeop setState; # Unsure what exactly this state contains
+define pcodeop getState; 
 
 # Map of fields within the instruction that we will use during instruction
 # decoding.
@@ -71,24 +109,149 @@ define token instr(16)
   # Displacements from $pc for the tj instruction
   displacement_0_11 = (0, 10) signed
   displacement_0_8 = (0, 7) signed
+  
+  thc0002=(0,2)
+  thc0003=(0,3)
+  thc0004=(0,4)
+  thc0007=(0,7)
+  thc0011=(0,11)
+  thc0107=(1,7)
+  thc0207=(2,7)
+  thc0307=(3,7)
+  thc0407=(4,7)
+  thc0405=(4,5)
+  thc0409=(4,9)
+  thc0506=(5,6)
+  thc0507=(5,7)
+  thc0607=(6,7)
+  thc0810=(8,10)
+  thc0811=(8,11)
+  thc0910=(9,10)
+  thc0808=(8,8)
+  thc0707=(7,7)
+  thc0606=(6,6)
+  thc0505=(5,5)
+  thc0404=(4,4)
+  thc0303=(3,3)
+  thc0202=(2,2)
+  thc0101=(1,1)
+  thc0000=(0,0)
+ 
 ;
+define token long_instr(16)
+  long_disp_0_11 = (0, 10)
+;
+    
+
+read_list_base: r0  		        is thc0000=1 & r0 & thc0107=0			    { r0 = *mult_addr; mult_addr = mult_addr + 4; }
+read_list_base: r0^","		        is thc0000=1 & r0				            { r0 = * mult_addr; mult_addr = mult_addr + 4; }
+read_list_base:			            is thc0000=0					            { }
+read_list7: read_list_base r1  	    is thc0101=1 & read_list_base & r1 & thc0207=0	{ r1 = * mult_addr; mult_addr = mult_addr + 4; }
+read_list7: read_list_base r1^","	is thc0101=1 & read_list_base & r1			    { r1 = * mult_addr; mult_addr = mult_addr + 4; }
+read_list7: read_list_base  	    is thc0101=0 & read_list_base			        { }
+read_list6: read_list7 r2  	        is thc0202=1 & read_list7 & r2 & thc0307=0	{ r2 = * mult_addr; mult_addr = mult_addr + 4; }
+read_list6: read_list7 r2^","	    is thc0202=1 & read_list7 & r2   		    { r2 = * mult_addr; mult_addr = mult_addr + 4; }
+read_list6: read_list7  	        is thc0202=0 & read_list7			        { }
+read_list5: read_list6 r3  	        is thc0303=1 & read_list6 & r3 & thc0407=0	{ r3 = * mult_addr; mult_addr = mult_addr + 4; }
+read_list5: read_list6 r3^","	    is thc0303=1 & read_list6 & r3			    { r3 = * mult_addr; mult_addr = mult_addr + 4; }
+read_list5: read_list6  	        is thc0303=0 & read_list6			        { }
+read_list4: read_list5 r4  	        is thc0404=1 & read_list5 & r4 & thc0507=0	{ r4 = * mult_addr; mult_addr = mult_addr + 4; }
+read_list4: read_list5 r4^","	    is thc0404=1 & read_list5 & r4   		    { r4 = * mult_addr; mult_addr = mult_addr + 4; }
+read_list4: read_list5		        is thc0404=0 & read_list5			        { }
+read_list3: read_list4 r5  	        is thc0505=1 & read_list4 & r5 & thc0607=0	{ r5 = * mult_addr; mult_addr = mult_addr + 4; }
+read_list3: read_list4 r5^","	    is thc0505=1 & read_list4 & r5   		    { r5 = * mult_addr; mult_addr = mult_addr + 4; }
+read_list3: read_list4  	        is thc0505=0 & read_list4			        { }
+read_list2: read_list3 r6  	        is thc0606=1 & read_list3 & r6 & thc0707=0	{ r6 = * mult_addr; mult_addr = mult_addr + 4; }
+read_list2: read_list3 r6^","	    is thc0606=1 & read_list3 & r6			    { r6 = * mult_addr; mult_addr = mult_addr + 4; }
+read_list2: read_list3  		    is thc0606=0 & read_list3			        { }
+read_list1: read_list2 r7		    is thc0707=1 & read_list2 & r7 { r7 = * mult_addr; mult_addr = mult_addr + 4; }
+read_list1: read_list2  		    is thc0707=0 & read_list2		    		{ }
+
+write_list1: r7   		        is thc0707=1 & r7 { * mult_addr=r7; mult_addr = mult_addr - 4; }
+write_list1:                    is thc0707=0 				    { }
+write_list2: r6               	is thc0606=1 & write_list1 & r6 & thc0707=0	{ * mult_addr=r6; mult_addr = mult_addr - 4; }
+write_list2: r6^"," write_list1 is thc0606=1 & write_list1 & r6             { * mult_addr=r6; mult_addr = mult_addr - 4; }
+write_list2: write_list1  		is thc0606=0 & write_list1				    { }
+write_list3: r5               	is thc0505=1 & write_list2 & r5 & thc0607=0	{ * mult_addr=r5; mult_addr = mult_addr - 4; }
+write_list3: r5^"," write_list2 is thc0505=1 & write_list2 & r5             { * mult_addr=r5; mult_addr = mult_addr - 4; }
+write_list3: write_list2  		is thc0505=0 & write_list2				    { }
+write_list4: r4                 is thc0404=1 & write_list3 & r4 & thc0507=0	{ * mult_addr=r4; mult_addr = mult_addr - 4; }
+write_list4: r4^"," write_list3 is thc0404=1 & write_list3 & r4             { * mult_addr=r4; mult_addr = mult_addr - 4; }
+write_list4: write_list3  		is thc0404=0 & write_list3				    { }
+write_list5: r3                 is thc0303=1 & write_list4 & r3 & thc0407=0	{ * mult_addr=r3; mult_addr = mult_addr - 4; }
+write_list5: r3^"," write_list4 is thc0303=1 & write_list4 & r3             { * mult_addr=r3; mult_addr = mult_addr - 4; }
+write_list5: write_list4  		is thc0303=0 & write_list4				    { }
+write_list6: r2                 is thc0202=1 & write_list5 & r2 & thc0407=0	{ * mult_addr=r2; mult_addr = mult_addr - 4; }
+write_list6: r2^"," write_list5 is thc0202=1 & write_list5 & r2             { * mult_addr=r2; mult_addr = mult_addr - 4; }
+write_list6: write_list5  		is thc0202=0 & write_list5				    { }
+write_list7: r1                 is thc0101=1 & write_list6 & r1 & thc0207=0	{ * mult_addr=r1; mult_addr = mult_addr - 4; }
+write_list7: r1^"," write_list6 is thc0101=1 & write_list6 & r1             { * mult_addr=r1; mult_addr = mult_addr - 4; }
+write_list7: write_list6  		is thc0101=0 & write_list6				    { }
+write_list_base: r0             is thc0000=1 & write_list7 & r0 & thc0107=0	{ * mult_addr=r0; mult_addr = mult_addr - 4; }
+write_list_base: r0^"," write_list7 is thc0000=1 & write_list7 & r0             { * mult_addr=r0; mult_addr = mult_addr - 4; }
+write_list_base: write_list7        is thc0000=0 & write_list7 				        { }
+
+write_list_inc1: r7   		        is thc0707=1 & r7 { * mult_addr=r7; mult_addr = mult_addr + 4; }
+write_list_inc1:                    is thc0707=0 				    { }
+write_list_inc2: r6               	is thc0606=1 & write_list_inc1 & r6 & thc0707=0	{ * mult_addr=r6; mult_addr = mult_addr + 4; }
+write_list_inc2: r6^"," write_list_inc1 is thc0606=1 & write_list_inc1 & r6             { * mult_addr=r6; mult_addr = mult_addr + 4; }
+write_list_inc2: write_list_inc1  		is thc0606=0 & write_list_inc1				    { }
+write_list_inc3: r5               	is thc0505=1 & write_list_inc2 & r5 & thc0607=0	{ * mult_addr=r5; mult_addr = mult_addr + 4; }
+write_list_inc3: r5^"," write_list_inc2 is thc0505=1 & write_list_inc2 & r5             { * mult_addr=r5; mult_addr = mult_addr + 4; }
+write_list_inc3: write_list_inc2  		is thc0505=0 & write_list_inc2				    { }
+write_list_inc4: r4                 is thc0404=1 & write_list_inc3 & r4 & thc0507=0	{ * mult_addr=r4; mult_addr = mult_addr + 4; }
+write_list_inc4: r4^"," write_list_inc3 is thc0404=1 & write_list_inc3 & r4             { * mult_addr=r4; mult_addr = mult_addr + 4; }
+write_list_inc4: write_list_inc3  		is thc0404=0 & write_list_inc3				    { }
+write_list_inc5: r3                 is thc0303=1 & write_list_inc4 & r3 & thc0407=0	{ * mult_addr=r3; mult_addr = mult_addr + 4; }
+write_list_inc5: r3^"," write_list_inc4 is thc0303=1 & write_list_inc4 & r3             { * mult_addr=r3; mult_addr = mult_addr + 4; }
+write_list_inc5: write_list_inc4  		is thc0303=0 & write_list_inc4				    { }
+write_list_inc6: r2                 is thc0202=1 & write_list_inc5 & r2 & thc0407=0	{ * mult_addr=r2; mult_addr = mult_addr + 4; }
+write_list_inc6: r2^"," write_list_inc5 is thc0202=1 & write_list_inc5 & r2             { * mult_addr=r2; mult_addr = mult_addr + 4; }
+write_list_inc6: write_list_inc5  		is thc0202=0 & write_list_inc5				    { }
+write_list_inc7: r1                 is thc0101=1 & write_list_inc6 & r1 & thc0207=0	{ * mult_addr=r1; mult_addr = mult_addr + 4; }
+write_list_inc7: r1^"," write_list_inc6 is thc0101=1 & write_list_inc6 & r1             { * mult_addr=r1; mult_addr = mult_addr + 4; }
+write_list_inc7: write_list_inc6  		is thc0101=0 & write_list_inc6				    { }
+write_list_inc_base: r0             is thc0000=1 & write_list_inc7 & r0 & thc0107=0	{ * mult_addr=r0; mult_addr = mult_addr + 4; }
+write_list_inc_base: r0^"," write_list_inc7 is thc0000=1 & write_list_inc7 & r0             { * mult_addr=r0; mult_addr = mult_addr + 4; }
+write_list_inc_base: write_list_inc7        is thc0000=0 & write_list_inc7 				        { }
 
 
 # Immediates that are multiplied by a constant
-imm_0_7_x4: value is imm_0_7 [ value = imm_0_7 * 4; ] { }
-imm_0_8_x4: value is imm_0_8 [ value = imm_0_8 * 4; ] { }
-imm_6_5_x2: value is imm_6_5 [ value = imm_6_5 * 2; ] { }
-imm_6_5_x4: value is imm_6_5 [ value = imm_6_5 * 4; ] { }
-
-# "Hi" registers
-hi_reg_6_1_and_3_3: hi_reg_lower_3_3 is hi_reg_upper_6_1 = 1 & hi_reg_lower_3_3 { }
-hi_reg_6_1_and_3_3: reg_3_3 is hi_reg_upper_6_1 = 0 & reg_3_3 { }
-hi_reg_7_1_and_0_3: hi_reg_lower_0_3 is hi_reg_upper_7_1 = 1 & hi_reg_lower_0_3 { }
-hi_reg_7_1_and_0_3: reg_0_3 is hi_reg_upper_7_1 = 0 & reg_0_3 { }
+imm_0_7_x4: value is imm_0_7 [ value = imm_0_7 * 4; ] { tmp = imm_0_7:4 * 4; export tmp; }
+imm_0_8_x4: value is imm_0_8 [ value = imm_0_8 * 4; ] { tmp = imm_0_8:4 * 4; export tmp; }
+imm_6_5_x2: value is imm_6_5 [ value = imm_6_5 * 2; ] { tmp = imm_6_5:4 * 2; export tmp; }
+imm_6_5_x4: value is imm_6_5 [ value = imm_6_5 * 4; ] { tmp = imm_6_5:4 * 4; export tmp; }
 
 # Right shifts of zero are interpreted as right shifts of 32
-right_shift_imm_6_5: 32 is imm_6_5=0 { }
-right_shift_imm_6_5: imm_6_5 is imm_6_5 { }
+right_shift_imm_6_5: 32 is imm_6_5=0 { tmp = 32:4; export tmp;  }
+right_shift_imm_6_5: imm_6_5 is imm_6_5 { tmp = imm_6_5:4; export tmp; }
+
+Addr8:	reloc	is displacement_0_8
+  [ reloc = (inst_start+4) + 2*displacement_0_8; ]
+{
+  export *:4 reloc;
+}
+
+Addr11:	reloc	is displacement_0_11
+  [ reloc = (inst_start+4) + 2*displacement_0_11; ]
+{
+  export *:4 reloc;
+}
+
+thcc: "eq"	is cond_imm_8_4=0	{ tmp:1 = (ZR!=0); export tmp; }
+thcc: "ne"	is cond_imm_8_4=1	{ tmp:1 = (ZR==0); export tmp; }
+thcc: "cs"	is cond_imm_8_4=2	{ tmp:1 = (CY!=0); export tmp; }
+thcc: "cc"	is cond_imm_8_4=3	{ tmp:1 = (CY==0); export tmp; }
+thcc: "mi"	is cond_imm_8_4=4	{ tmp:1 = (NG!=0); export tmp; }
+thcc: "pl"	is cond_imm_8_4=5	{ tmp:1 = (NG==0); export tmp; }
+thcc: "vs"	is cond_imm_8_4=6	{ tmp:1 = (OV!=0); export tmp; }
+thcc: "vc"	is cond_imm_8_4=7	{ tmp:1 = (OV==0); export tmp; }
+thcc: "hi"	is cond_imm_8_4=8	{ tmp:1 = CY && !ZR; export tmp; }
+thcc: "ls"	is cond_imm_8_4=9	{ tmp:1 = !CY || ZR; export tmp; }
+thcc: "ge"	is cond_imm_8_4=10	{ tmp:1 = (NG == OV); export tmp; }
+thcc: "lt"	is cond_imm_8_4=11	{ tmp:1 = (NG != OV); export tmp; }
+thcc: "gt"	is cond_imm_8_4=12	{ tmp:1 = !ZR && (NG == OV); export tmp; }
+thcc: "le"	is cond_imm_8_4=13	{ tmp:1 = ZR || (NG != OV); export tmp; }
 
 
 # Map operands that encode register numbers to the actual registers.
@@ -104,8 +267,15 @@ attach variables
 ;
 attach variables
   [ hi_reg_lower_0_3 hi_reg_lower_3_3 ]
-  [ r8 r9 r10 r11 r12 sp lr pc  ]
+  [ r8 r9 sl fp ip sp lr pc  ]
 ;
+
+
+# "Hi" registers
+hi_reg_6_1_and_3_3: hi_reg_lower_3_3 is hi_reg_upper_6_1 = 1 & hi_reg_lower_3_3 { export hi_reg_lower_3_3;  }
+hi_reg_6_1_and_3_3: reg_3_3 is hi_reg_upper_6_1 = 0 & reg_3_3 { export reg_3_3;  }
+hi_reg_7_1_and_0_3: hi_reg_lower_0_3 is hi_reg_upper_7_1 = 1 & hi_reg_lower_0_3 { export hi_reg_lower_0_3; }
+hi_reg_7_1_and_0_3: reg_0_3 is hi_reg_upper_7_1 = 0 & reg_0_3 { export reg_0_3; }
 
 
 # Map the condition operand for the conditional TJ instruction.
@@ -118,191 +288,307 @@ attach names
 # tadd%C %0-2r, %3-5r, #%6-8d
 :tadds reg_0_3, reg_3_3, #imm_6_3 is op_9_7=0x0076 & reg_0_3 & reg_3_3 & imm_6_3
 {
+  th_addflags(reg_3_3,imm_6_3);
+  reg_0_3 = reg_3_3 + imm_6_3;
+  resflags(reg_0_3);
+  th_affectflags();    
 }
 
 # tadd%C %0-2r, %3-5r, %6-8r
 :tadds reg_0_3, reg_3_3, reg_6_3 is op_9_7=0x0074 & reg_0_3 & reg_3_3 & reg_6_3
 {
+    th_addflags(reg_3_3,reg_6_3);
+    reg_0_3 = reg_3_3 + reg_6_3;
+    resflags(reg_0_3);
+    th_affectflags();    
 }
 
 # tadd%C %8-10r, #%0-7d
 :tadds reg_8_3, #imm_0_8 is op_11_5=0x0016 & reg_8_3 & imm_0_8
 {
+    th_addflags(reg_8_3,imm_0_8);
+    reg_8_3 = reg_8_3 + imm_0_8;
+    resflags(reg_8_3);
+    th_affectflags();    
 }
 
 # tadd%c %8-10r, pc, #%0-7W
 :tadd reg_8_3, pc, #imm_0_8_x4 is op_11_5=0x000e & reg_8_3 & pc & imm_0_8_x4
 {
+    reg_8_3 = pc + 4 + imm_0_8_x4;
 }
 
 # tadd%c %8-10r, sp, #%0-7W
 :tadd reg_8_3, sp, #imm_0_8_x4 is op_11_5=0x000f & reg_8_3 & sp & imm_0_8_x4
 {
+    reg_8_3 = sp + imm_0_8_x4;
 }
 
 # tadd%c %D, %S
 :tadd hi_reg_7_1_and_0_3, hi_reg_6_1_and_3_3 is op_8_8=0x0004 & hi_reg_7_1_and_0_3 & hi_reg_6_1_and_3_3
 {
+    hi_reg_7_1_and_0_3 = hi_reg_7_1_and_0_3 + hi_reg_6_1_and_3_3;
 }
 
 # tadd%c sp, #%0-6W
 :tadd sp, #imm_0_7_x4 is op_7_9=0x00c0 & sp & imm_0_7_x4
 {
+    sp = sp + imm_0_7_x4;
 }
 
 # taddc%C %0-2r, %3-5r
 :taddcs reg_0_3, reg_3_3 is op_6_10=0x0005 & reg_0_3 & reg_3_3
 {
+  th_addflags(reg_0_3,reg_3_3);
+  reg_0_3 = reg_0_3 + reg_3_3 + zext(CY);
+  resflags(reg_0_3);
+  th_affectflags();
 }
 
 # tand%C %0-2r, %3-5r
 :tands reg_0_3, reg_3_3 is op_6_10=0x0000 & reg_0_3 & reg_3_3
 {
+    reg_0_3 = reg_0_3 & reg_3_3;
+    resflags(reg_0_3);
+    th_affectflags();
 }
 
 # tasr%C %0-2r, %3-5r
 :tasrs reg_0_3, reg_3_3 is op_6_10=0x0004 & reg_0_3 & reg_3_3
 {
+    grabbit(reg_0_3,31);
+    reg_0_3 = reg_0_3 s>> reg_3_3;
+    resflags(reg_0_3);
+    th_affectflags();
 }
 
 # tasr%C %0-2r, %3-5r, %s
 :tasrs reg_0_3, reg_3_3, right_shift_imm_6_5 is op_11_5=0x001c & reg_0_3 & reg_3_3 & right_shift_imm_6_5
 {
+    grabbit(reg_3_3,31);
+    reg_0_3 = reg_3_3 s>> right_shift_imm_6_5;
+    resflags(reg_0_3);
+    th_affectflags();
 }
 
 # tbclr%C %0-2r, %3-5r
 :tbclrs reg_0_3, reg_3_3 is op_6_10=0x000e & reg_0_3 & reg_3_3
 {
+    reg_0_3 = reg_0_3 & (~reg_3_3);
+    resflags(reg_0_3);
+    th_affectflags();
 }
 
 # tcmp%c %0-2r, %3-5r
 :tcmp reg_0_3, reg_3_3 is op_6_10=0x000a & reg_0_3 & reg_3_3
 {
+    th_subflags(reg_0_3,reg_3_3);
+    local tmp = reg_0_3 - reg_3_3;
+    resflags(tmp);
+    th_affectflags();
 }
 
 # tcmp%c %8-10r, #%0-7d
 :tcmp reg_8_3, #imm_0_8 is op_11_5=0x0015 & reg_8_3 & imm_0_8
 {
+    th_subflags(reg_8_3,imm_0_8);
+    local tmp = reg_8_3 - imm_0_8;
+    resflags(tmp);
+    th_affectflags();
 }
 
 # tcmp%c %D, %S
 :tcmp hi_reg_7_1_and_0_3, hi_reg_6_1_and_3_3 is op_8_8=0x0005 & hi_reg_7_1_and_0_3 & hi_reg_6_1_and_3_3
 {
+    th_subflags(hi_reg_7_1_and_0_3,hi_reg_6_1_and_3_3);
+    local tmp = hi_reg_7_1_and_0_3 - hi_reg_6_1_and_3_3;
+    resflags(tmp);
+    th_affectflags();
 }
 
 # tcmpn%c %0-2r, %3-5r
 :tcmpn reg_0_3, reg_3_3 is op_6_10=0x000b & reg_0_3 & reg_3_3
 {
+    # Not used
 }
 
 # tj%8-11c.n %0-7B%X
-:tj^cond_imm_8_4".n" displacement_0_8 is op_12_4=0x000c & cond_imm_8_4 & displacement_0_8
+:tj^thcc^".n" Addr8 is op_12_4=0x000c & thcc & Addr8
 {
+    if (thcc) goto Addr8;
 }
 
 # tj%c.n %0-10B%x
-:tj".n" displacement_0_11 is op_11_5=0x0010 & displacement_0_11
+:tj".n" Addr11 is op_11_5=0x0010 & Addr11 
 {
+    goto Addr11;
+}
+
+# tjl%c\\t%1%x'
+:tjl tj_disp is op_11_5=0x0012 & displacement_0_11; long_disp_0_11 [ tj_disp = inst_next + (displacement_0_11 << 12) + 2 * long_disp_0_11; ]
+{
+    target:4 = inst_next + (displacement_0_11 << 12) + 2 * long_disp_0_11;
+    lr = inst_next;
+    call [target];    
 }
 
 # tjex%c %S%x
-:tjex hi_reg_6_1_and_3_3 is op_7_9=0x000e & hi_reg_6_1_and_3_3
+:tjex hi_reg_6_1_and_3_3 is op_7_9=0x000e & hi_reg_6_1_and_3_3 & hi_reg_lower_3_3=0b110 & hi_reg_upper_6_1=1
 {
+    return [hi_reg_6_1_and_3_3];
+}
+
+
+# tjex%c %S%x
+:tjex hi_reg_6_1_and_3_3 is op_7_9=0x000e & hi_reg_6_1_and_3_3 
+{
+    call [hi_reg_6_1_and_3_3];
 }
 
 # tloadm%c %8-10r!, %M
-:tloadm reg_8_3!, {} is op_11_5=0x001b & reg_8_3
+:tloadm reg_8_3!, { read_list1 } is op_11_5=0x001b & reg_8_3 & read_list1
 {
+   mult_addr = reg_8_3;
+   build read_list1;
+   reg_8_3 = mult_addr;
 }
 
-# tloadr%10'b%c %0-2r, [%3-5r, %6-8r]
-:tloadr^flag_10_1 reg_0_3, [reg_3_3, reg_6_3] is op_9_1=0x0000 & op_11_5=0x0003 & flag_10_1 & reg_0_3 & reg_3_3 & reg_6_3
+# tloadr%10'b%c %0-2r, [%3-5r, %6-8r] -- read 4 bytes
+:tloadr reg_0_3, [reg_3_3, reg_6_3] is op_9_1=0x0000 & op_11_5=0x0003 & flag_10_1=0 & reg_0_3 & reg_3_3 & reg_6_3
 {
+    reg_0_3 = *:4 (reg_3_3+reg_6_3);
+}
+
+# tloadr%10'b%c %0-2r, [%3-5r, %6-8r] -- read single byte
+:tloadrb reg_0_3, [reg_3_3, reg_6_3] is op_9_1=0x0000 & op_11_5=0x0003 & flag_10_1=1 & reg_0_3 & reg_3_3 & reg_6_3
+{
+    reg_0_3 = zext( *:1 (reg_3_3+reg_6_3) );
 }
 
 # tloadr%c %0-2r, [%3-5r, #%6-10W]
 :tloadr reg_0_3, [reg_3_3, #imm_6_5_x4] is op_11_5=0x000b & reg_0_3 & reg_3_3 & imm_6_5_x4
 {
+    reg_0_3 = *:4 (reg_3_3+imm_6_5_x4);
 }
 
 # tloadr%c %8-10r, [pc, #%0-7W]
 :tloadr reg_8_3, [pc, #imm_0_8_x4] is op_11_5=0x0001 & reg_8_3 & pc & imm_0_8_x4
 {
+    reg_8_3 = *:4 (((inst_start + 4) & 0xfffffffc) + imm_0_8_x4);    
 }
 
 # tloadr%c %8-10r, [sp, #%0-7W]
 :tloadr reg_8_3, [sp, #imm_0_8_x4] is op_11_5=0x0007 & reg_8_3 & sp & imm_0_8_x4
 {
+    reg_8_3 = *:4 (sp+imm_0_8_x4);    
 }
 
 # tloadrb%c %0-2r, [%3-5r, #%6-10d]
 :tloadrb reg_0_3, [reg_3_3, #imm_6_5] is op_11_5=0x0009 & reg_0_3 & reg_3_3 & imm_6_5
 {
+    reg_0_3 = zext( *:1 (reg_3_3+imm_6_5) );
 }
 
 # tloadrh%c %0-2r, [%3-5r, #%6-10H]
 :tloadrh reg_0_3, [reg_3_3, #imm_6_5_x2] is op_11_5=0x0005 & reg_0_3 & reg_3_3 & imm_6_5_x2
 {
+    reg_0_3 = zext( *:2 (reg_3_3+imm_6_5_x2) );
 }
 
 # tloadrh%c %0-2r, [%3-5r, %6-8r]
 :tloadrh reg_0_3, [reg_3_3, reg_6_3] is op_9_7=0x000d & reg_0_3 & reg_3_3 & reg_6_3
 {
+    reg_0_3 = zext( *:2 (reg_3_3+reg_6_3) );
 }
 
 # tloadrs%11?hb%c %0-2r, [%3-5r, %6-8r]
-:tloadrs^flag_11_1 reg_0_3, [reg_3_3, reg_6_3] is op_9_2=0x0003 & op_12_4=0x0001 & flag_11_1 & reg_0_3 & reg_3_3 & reg_6_3
+:tloadrsb reg_0_3, [reg_3_3, reg_6_3] is op_9_2=0x0003 & op_12_4=0x0001 & flag_11_1=0 & reg_0_3 & reg_3_3 & reg_6_3
 {
+    reg_0_3 = sext( *:1 (reg_3_3+reg_6_3));
+}
+
+# tloadrs%11?hb%c %0-2r, [%3-5r, %6-8r]
+:tloadrsh reg_0_3, [reg_3_3, reg_6_3] is op_9_2=0x0003 & op_12_4=0x0001 & flag_11_1=1 & reg_0_3 & reg_3_3 & reg_6_3
+{
+    reg_0_3 = sext( *:2 (reg_3_3+reg_6_3));
 }
 
 # tmcsr%c %0-2r
 :tmcsr reg_0_3 is op_3_13=0x0d78 & reg_0_3
 {
+    setExecutionMode(reg_0_3);
 }
 
 # tmov%C %8-10r, #%0-7d
 :tmovs reg_8_3, #imm_0_8 is op_11_5=0x0014 & reg_8_3 & imm_0_8
 {
+    reg_8_3 = imm_0_8;
+    resflags(reg_8_3);
+    th_affectflags();
 }
 
 # tmov%c %D, %S
 :tmov hi_reg_7_1_and_0_3, hi_reg_6_1_and_3_3 is op_8_8=0x0006 & hi_reg_7_1_and_0_3 & hi_reg_6_1_and_3_3
 {
+    hi_reg_7_1_and_0_3 = hi_reg_6_1_and_3_3:4;
+}
+
+# tmov%c %D, %S
+:tmov pc, hi_reg_6_1_and_3_3 is op_8_8=0x0006 & hi_reg_lower_0_3 = 0b111 & hi_reg_upper_7_1 = 1 & hi_reg_6_1_and_3_3 & hi_reg_7_1_and_0_3 & pc
+{
+    pc = hi_reg_6_1_and_3_3:4;
+    goto [pc];
 }
 
 # tmovn%C %0-2r, %3-5r
 :tmovns reg_0_3, reg_3_3 is op_6_10=0x000f & reg_0_3 & reg_3_3
 {
+    reg_0_3 = ~reg_3_3;
+    resflags(reg_0_3);
+    th_affectflags();
 }
 
 # tmrcs%c %0-2r
 :tmrcs reg_0_3 is op_3_13=0x0d79 & reg_0_3
 {
+    getExecutionMode(reg_0_3);
 }
 
 # tmrss%c %0-2r
 :tmrss reg_0_3 is op_3_13=0x0d7b & reg_0_3
 {
+    getState(reg_0_3);
 }
 
 # tmssr%c %0-2r
 :tmssr reg_0_3 is op_3_13=0x0d7a & reg_0_3
 {
+    setState(reg_0_3);
 }
 
 # tmul%C %0-2r, %3-5r
 :tmuls reg_0_3, reg_3_3 is op_6_10=0x000d & reg_0_3 & reg_3_3
 {
+    reg_0_3 = reg_0_3 * reg_3_3;
+    resflags(reg_0_3);
+    th_affectflags();
 }
 
 # tnand%c %0-2r, %3-5r
 :tnand reg_0_3, reg_3_3 is op_6_10=0x0008 & reg_0_3 & reg_3_3
 {
+    tmp = reg_0_3 & reg_3_3;
+    resflags(tmp);
+    th_affectflags();
+    # reg_0_3 = ~(reg_0_3 & reg_3_3);
 }
 
 # tneg%C %0-2r, %3-5r
 :tnegs reg_0_3, reg_3_3 is op_6_10=0x0009 & reg_0_3 & reg_3_3
 {
+    reg_0_3 = ~reg_3_3;
+    resflags(reg_0_3);
+    th_affectflags();
 }
 
 # tnop%c
@@ -313,29 +599,62 @@ attach names
 # tor%C %0-2r, %3-5r
 :tors reg_0_3, reg_3_3 is op_6_10=0x000c & reg_0_3 & reg_3_3
 {
+    reg_0_3 = reg_0_3 | reg_3_3;
+    resflags(reg_0_3);
+    th_affectflags();
 }
 
 # tpop%c %O
-:tpop {pc} is op_9_7=0x0036 & pc
+:tpop { read_list1, pc} is op_9_7=0x0036 & thc0808 = 1 & pc & read_list1
 {
+    mult_addr = sp;
+    build read_list1;
+    pc = *:4 mult_addr;
+    sp = mult_addr + 4;
+    return [pc];
 }
 
-# tpush%c %N
-:tpush {lr} is op_9_7=0x0032 & lr
+# tpop%c %O
+:tpop { read_list1 } is op_9_7=0x0036 & thc0808 = 0 & read_list1
 {
+    mult_addr = sp;
+    build read_list1;
+    sp = mult_addr;
+}
+
+# %c %N
+:tpush { write_list_base, lr} is op_9_7=0x0032 & thc0808 = 1 & lr & write_list_base
+{
+    mult_addr = sp-4;
+    build write_list_base;
+    *:4 mult_addr = lr;
+    sp = mult_addr:4;
+}
+
+ # tpush%c %N
+:tpush { write_list_base} is op_9_7=0x0032 & thc0808 = 0 & write_list_base
+{
+    mult_addr = sp-4;
+    build write_list_base;    
+    sp = mult_addr:4 + 4;
 }
 
 # treti %O
-:treti {pc} is op_9_7=0x0034 & pc
+:treti {read_list1, pc} is op_9_7=0x0034 & pc & read_list1
 {
+    mult_addr = sp;
+    build read_list1;
+    pc = *:4 mult_addr;
+    sp = mult_addr + 4;
+    return [pc];
 }
 
-# trotr%C %0-2r, %3-5r
+# trotr%C %0-2r, %3-5r - unused
 :trotrs reg_0_3, reg_3_3 is op_6_10=0x0007 & reg_0_3 & reg_3_3
 {
 }
 
-# tserv%c %0-7d
+# tserv%c %0-7d - unused
 :tserv imm_0_8 is op_8_8=0x00cf & imm_0_8
 {
 }
@@ -343,84 +662,144 @@ attach names
 # tshftl%C %0-2r, %3-5r
 :tshftls reg_0_3, reg_3_3 is op_6_10=0x0002 & reg_0_3 & reg_3_3
 {
+    
+    local tmp = 32 - reg_3_3;
+    grabbit(reg_0_3,tmp);
+    reg_0_3 = reg_0_3 << reg_3_3;
+    resflags(reg_0_3);
+    th_affectflags();
 }
 
 # tshftl%C %0-2r, %3-5r, #%6-10d
 :tshftls reg_0_3, reg_3_3, #imm_6_5 is op_11_5=0x001e & reg_0_3 & reg_3_3 & imm_6_5
 {
+    local tmp = 32 - imm_6_5;
+    grabbit(reg_3_3,tmp);
+    reg_0_3  = reg_3_3 << imm_6_5;
+    resflags(reg_0_3);
+    th_affectflags();
 }
 
 # tshftr%C %0-2r, %3-5r
 :tshftrs reg_0_3, reg_3_3 is op_6_10=0x0003 & reg_0_3 & reg_3_3
 {
+  local tmp = reg_3_3 - 1;
+  grabbit(reg_0_3,tmp);
+  reg_0_3 = reg_0_3 >> reg_3_3;
+  resflags(reg_0_3);
+  th_affectflags();
 }
 
 # tshftr%C %0-2r, %3-5r, %s
 :tshftrs reg_0_3, reg_3_3, right_shift_imm_6_5 is op_11_5=0x001f & reg_0_3 & reg_3_3 & right_shift_imm_6_5
 {
+  local tmp = right_shift_imm_6_5 - 1;
+  grabbit(reg_3_3,tmp);
+  reg_0_3 = reg_3_3 >> right_shift_imm_6_5;
+  resflags(reg_0_3);
+  th_affectflags();
+    
 }
 
 # tstorem%c %8-10r!, %M
-:tstorem reg_8_3!, {} is op_11_5=0x001a & reg_8_3
+:tstorem reg_8_3!, { write_list_inc_base } is op_11_5=0x001a & reg_8_3 & write_list_inc_base
 {
+    mult_addr = reg_8_3;
+    build write_list_inc_base;
+    reg_8_3 = mult_addr;
 }
 
-# tstorer%10'b%c %0-2r, [%3-5r, %6-8r]
-:tstorer^flag_10_1 reg_0_3, [reg_3_3, reg_6_3] is op_9_1=0x0000 & op_11_5=0x0002 & flag_10_1 & reg_0_3 & reg_3_3 & reg_6_3
+# tstorer%10'b%c %0-2r, [%3-5r, %6-8r] -- b is ON
+:tstorerb reg_0_3, [reg_3_3, reg_6_3] is op_9_1=0x0000 & op_11_5=0x0002 & flag_10_1=1 & reg_0_3 & reg_3_3 & reg_6_3
 {
+    *(reg_3_3 + reg_6_3) = reg_0_3:1;
+}
+
+# tstorer%10'b%c %0-2r, [%3-5r, %6-8r] -- b is OFF
+:tstorer reg_0_3, [reg_3_3, reg_6_3] is op_9_1=0x0000 & op_11_5=0x0002 & flag_10_1=0 & reg_0_3 & reg_3_3 & reg_6_3
+{
+    *(reg_3_3 + reg_6_3) = reg_0_3:4;
 }
 
 # tstorer%c %0-2r, [%3-5r, #%6-10W]
 :tstorer reg_0_3, [reg_3_3, #imm_6_5_x4] is op_11_5=0x000a & reg_0_3 & reg_3_3 & imm_6_5_x4
 {
+    *(reg_3_3 + imm_6_5_x4) = reg_0_3:4;
 }
 
 # tstorer%c %8-10r, [sp, #%0-7W]
 :tstorer reg_8_3, [sp, #imm_0_8_x4] is op_11_5=0x0006 & reg_8_3 & sp & imm_0_8_x4
 {
+    *(sp + imm_0_8_x4) = reg_8_3:4;
 }
 
 # tstorerb%c %0-2r, [%3-5r, #%6-10d]
 :tstorerb reg_0_3, [reg_3_3, #imm_6_5] is op_11_5=0x0008 & reg_0_3 & reg_3_3 & imm_6_5
 {
+    *(reg_3_3 + imm_6_5) = reg_0_3:1;
 }
 
 # tstorerh%c %0-2r, [%3-5r, #%6-10H]
 :tstorerh reg_0_3, [reg_3_3, #imm_6_5_x2] is op_11_5=0x0004 & reg_0_3 & reg_3_3 & imm_6_5_x2
 {
+    *(reg_3_3 + imm_6_5_x2) = reg_0_3:2;
 }
 
 # tstorerh%c %0-2r, [%3-5r, %6-8r]
 :tstorerh reg_0_3, [reg_3_3, reg_6_3] is op_9_7=0x0009 & reg_0_3 & reg_3_3 & reg_6_3
 {
+    *(reg_3_3 + reg_6_3) = reg_0_3:2;
 }
 
 # tsub%C %0-2r, %3-5r, #%6-8d
 :tsubs reg_0_3, reg_3_3, #imm_6_3 is op_9_7=0x0077 & reg_0_3 & reg_3_3 & imm_6_3
 {
+    th_subflags(reg_3_3,imm_6_3);
+    reg_0_3 = reg_3_3 - imm_6_3;
+    resflags(reg_0_3);
+    th_affectflags();
 }
 
 # tsub%C %0-2r, %3-5r, %6-8r
 :tsubs reg_0_3, reg_3_3, reg_6_3 is op_9_7=0x0075 & reg_0_3 & reg_3_3 & reg_6_3
 {
+    th_subflags(reg_3_3,reg_6_3);
+    reg_0_3 = reg_3_3 - reg_6_3;
+    resflags(reg_0_3);
+    th_affectflags();
 }
 
 # tsub%C %8-10r, #%0-7d
 :tsubs reg_8_3, #imm_0_8 is op_11_5=0x0017 & reg_8_3 & imm_0_8
 {
+    th_subflags(reg_8_3,imm_0_8);
+    reg_8_3 = reg_8_3 - imm_0_8;
+    resflags(reg_8_3);
+    th_affectflags();
 }
 
 # tsub%c sp, #%0-6W
 :tsub sp, #imm_0_7_x4 is op_7_9=0x00c1 & sp & imm_0_7_x4
 {
+    th_subflags(sp,imm_0_7_x4);
+    sp = sp - imm_0_7_x4;
+    resflags(sp);
 }
 
 # tsubc%C %0-2r, %3-5r
 :tsubcs reg_0_3, reg_3_3 is op_6_10=0x0006 & reg_0_3 & reg_3_3
 {
+    th_subflags(reg_0_3,reg_3_3);
+    reg_0_3 = reg_0_3 - reg_3_3 - zext(!CY);
+    resflags(reg_0_3);
+    th_affectflags();
 }
 
 # txor%C %0-2r, %3-5r
 :txors reg_0_3, reg_3_3 is op_6_10=0x0001 & reg_0_3 & reg_3_3
 {
+    reg_0_3 = reg_0_3 ^ reg_3_3;
+    th_logicflags();
+    resflags(reg_0_3);
+    th_affectflags();
 }

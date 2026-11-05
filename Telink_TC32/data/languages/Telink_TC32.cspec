@@ -1,37 +1,73 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <compiler_spec>
+    <data_organization>  <!-- These tags were generated with gcc 4.2.4 -->
+     <absolute_max_alignment value="0" />
+     <machine_alignment value="2" />
+     <default_alignment value="1" />
+     <default_pointer_alignment value="4" />
+     <pointer_size value="4" />
+     <wchar_size value="4" />
+     <short_size value="2" />
+     <integer_size value="4" />
+     <long_size value="4" />
+     <long_long_size value="8" />
+     <float_size value="4" />
+     <double_size value="8" />
+     <long_double_size value="8" />
+     <size_alignment_map>
+          <entry size="1" alignment="1" />
+          <entry size="2" alignment="2" />
+          <entry size="4" alignment="4" />
+          <entry size="8" alignment="8" />
+     </size_alignment_map>
+    </data_organization>
   <global>
     <range space="RAM"/>
   </global>
   <stackpointer register="sp" space="RAM"/>
+  <funcptr align="2"/>     <!-- Function pointers are word aligned and leastsig bit may encode otherstuff -->
   <default_proto>
-    <!-- FIXME: this is just garbage right now -->
-    <prototype name="__stdcall" extrapop="2" stackshift="2">
+    <prototype name="__fastcall" extrapop="0" stackshift="0">
       <input>
-        <pentry maxsize="2" minsize="1">
+        <pentry minsize="1" maxsize="4" extension="inttype">
+          <register name="r0"/>
+        </pentry>
+        <pentry minsize="1" maxsize="4" extension="inttype">
           <register name="r1"/>
         </pentry>
-        <pentry maxsize="2" minsize="1">
+        <pentry minsize="1" maxsize="4" extension="inttype">
           <register name="r2"/>
         </pentry>
-        <pentry maxsize="2" minsize="1">
+        <pentry minsize="1" maxsize="4" extension="inttype">
           <register name="r3"/>
         </pentry>
-        <pentry maxsize="2" minsize="1">
-          <register name="r4"/>
-        </pentry>
-        <pentry maxsize="500" minsize="1" align="2">
-          <addr space="stack" offset="2"/>
+        <pentry minsize="1" maxsize="500" align="4">
+          <addr offset="0" space="stack"/>
         </pentry>
       </input>
       <output>
-        <pentry minsize="1" maxsize="2">
-          <register name="r1"/>
+        <pentry minsize="1" maxsize="4" extension="inttype">
+          <register name="r0"/>
         </pentry>
       </output>
       <unaffected>
+        <register name="r4"/> 
+        <register name="r5"/>
+        <register name="r6"/>
+        <register name="r7"/>
+        <register name="r8"/>
+        <register name="r9"/>
+        <register name="sl"/>
+        <register name="fp"/>
+        <register name="ip"/>
         <register name="sp"/>
       </unaffected>
+      <killedbycall>
+          <register name="r0"/>
+          <register name="r1"/>
+          <register name="r2"/>
+          <register name="r3"/>          
+      </killedbycall>
     </prototype>
   </default_proto>
 </compiler_spec>
